@@ -5,9 +5,16 @@
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
+.melos_tool/
+
+# IDEs
 .idea/
 .vscode/
 *.iml
+
+# Flutter platform builds (only ignore ephemeral/generated parts)
+**/Flutter/ephemeral/
+**/Flutter/GeneratedPluginRegistrant.*
 
 # macOS
 macos/Flutter/ephemeral/
@@ -15,5 +22,18 @@ macos/Flutter/ephemeral/
 # Windows
 windows/Flutter/ephemeral/
 
+# Linux
+linux/Flutter/ephemeral/
+
 # Web
 web/Flutter/ephemeral/
+
+# iOS
+ios/Flutter/ephemeral/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/.symlinks/
+Pods/
+DerivedData/
+.xcworkspace/

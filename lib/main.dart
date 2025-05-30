@@ -61,6 +61,8 @@ class _CameraPageState extends State<_CameraPage> {
   }
 
   Future<void> _uploadImage() async {
+
+    _results.clear(); // Clear previous results
     if (_image == null) return;
 
     try {
@@ -100,7 +102,7 @@ class _CameraPageState extends State<_CameraPage> {
           final candidates = item['candidate_items'] as List;
           for (var candidate in candidates) {
             final externalItems = candidate['external_items'] as List;
-            final url = externalItems.isNotEmpty
+            final url = externalItems.isNotEmpty  
                 ? externalItems[0]['url']
                 : null;
 
