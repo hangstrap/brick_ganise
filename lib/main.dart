@@ -8,11 +8,10 @@ import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image/image.dart' as img;
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -20,23 +19,141 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: _CameraPage());
+    return MaterialApp(home: const CameraPage());
   }
 }
 
-class _CameraPage extends StatefulWidget {
-  const _CameraPage({super.key});
+class CameraPage extends StatefulWidget {
+  const CameraPage({super.key});
+
   @override
-  _CameraPageState createState() => _CameraPageState();
+  State<CameraPage> createState() => _CameraPageState();
 }
 
-class _CameraPageState extends State<_CameraPage> {
+class _CameraPageState extends State<CameraPage> {
+  final CameraModel model = CameraModel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Flutter Camera App')),
+      body: CameraPageBody(model: model),
+    );
+  }
+}
+
+class CameraPageBody extends StatelessWidget {
+  final CameraModel model;
+  const CameraPageBody({super.key, required this.model});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        SizedBox(
+          width: 100,
+          height: 100,
+          child: model.image == null
+              ? const Text("No image selected")
+              : kIsWeb
+              ? Image.network(model.image!.path)
+              : Image.file(File(model.image!.path)),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            ElevatedButton(
+              onPressed: () async {
+                await model.takePhoto();
+                await model.uploadImage();
+                (context as Element).markNeedsBuild();
+              },
+              child: const Text("Take Photo"),
+            ),
+            const SizedBox(width: 20),
+            ElevatedButton(
+              onPressed: () async {
+                await model.pickImage();
+                await model.uploadImage();
+                (context as Element).markNeedsBuild();
+              },
+              child: const Text("Pick from Gallery"),
+            ),
+          ],
+        ),
+        // const SizedBox(height: 20),
+        // ElevatedButton(
+        //   onPressed: () async {
+        //     await model.uploadImage();
+        //     (context as Element).markNeedsBuild();
+        //   },
+        //   child: const Text("Upload Image"),
+        // ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: model.results.length,
+            itemBuilder: (context, index) {
+              final item = model.results[index];
+        return Card(
+  margin: const EdgeInsets.all(8),
+  child: Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Column with image and icon below it, aligned left
+        Column(
+          children: [
+            Image.network(item['image']!, width: 100, height: 100),
+            IconButton(
+              icon: const Icon(Icons.open_in_new),
+              onPressed: () {
+                final url = item['url'];
+                if (url != null && url.isNotEmpty) {
+                  launchUrl(Uri.parse(url));
+                }
+              },
+            ),
+          ],
+        ),
+
+        const SizedBox(width: 8),
+
+        // Text details next to image+icon column
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text("ID: ${item['id']}"),
+              Text("Score: ${item['score']}"),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+);
+
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class CameraModel {
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
   List<Map<String, String>> _results = [];
 
-  // Function to take a photo using the camera
-  Future<void> _takePhoto() async {
+  XFile? get image => _image;
+  List<Map<String, String>> get results => _results;
+
+  Future<void> takePhoto() async {
     final PermissionStatus status = await Permission.camera.request();
     if (status.isGranted) {
       final XFile? image = await _picker.pickImage(
@@ -44,105 +161,89 @@ class _CameraPageState extends State<_CameraPage> {
         maxWidth: 1080,
         maxHeight: 1080,
       );
-      setState(() {
-        _image = image;
-      });
+      _image = image;
     } else {
       debugPrint("Camera permission denied");
     }
   }
 
-  // Function to pick an image from gallery
-  Future<void> _pickImage() async {
+  Future<void> pickImage() async {
     final PermissionStatus status = await Permission.photos.request();
     if (status.isGranted) {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      setState(() {
-        _image = image;
-      });
+      _image = image;
     } else {
       debugPrint("Photo permission denied");
     }
   }
 
-  Future<void> _uploadImage() async {
-    _results.clear(); // Clear previous results
+  Future<void> uploadImage() async {
+    _results.clear();
     if (_image == null) return;
 
     try {
-      var uri = Uri.parse('https://api.brickognize.com/internal/search/');
-      var request = http.MultipartRequest('POST', uri);
+      final uri = Uri.parse('https://api.brickognize.com/internal/search/');
+      final request = http.MultipartRequest('POST', uri);
 
       if (kIsWeb) {
-        // Read file as bytes for web
         final bytes = await _image!.readAsBytes();
-
-        var multipartFile = http.MultipartFile.fromBytes(
+        final multipartFile = http.MultipartFile.fromBytes(
           'query_image',
           bytes,
           filename: 'upload.jpg',
           contentType: MediaType('image', 'jpeg'),
         );
-        debugPrint("File size: ${multipartFile.length} bytes");
         request.files.add(multipartFile);
       } else {
-        Uint8List originalBytes = await _image!.readAsBytes();
-        //        Uint8List compressedBytes = await compressImage(originalBytes);
-        // Non-web: use file path
-        var file = http.MultipartFile.fromBytes(
+        final originalBytes = await _image!.readAsBytes();
+        final compressedBytes = await compressImage(originalBytes);
+        final file = http.MultipartFile.fromBytes(
           'query_image',
-          originalBytes,
+          compressedBytes,
           filename: 'upload.jpg',
           contentType: MediaType('image', 'jpeg'),
         );
-        debugPrint("File size: ${file.length} bytes");
         request.files.add(file);
       }
 
-      debugPrint("about to send request with file: ${_image!.path}");
-      // Send the request
-      var response = await request.send();
+      final response = await request.send();
       final responseBody = await response.stream.bytesToString();
+      debugPrint("Response status: ${response.statusCode}");
+      debugPrint("Response body: \n\n  $responseBody \n\n");
       if (response.statusCode == 200) {
         final data = jsonDecode(responseBody);
         final detectedItems = data['detected_items'] as List;
-        final List<Map<String, String>> results = [];
+        final results = <Map<String, String>>[];
 
         for (var item in detectedItems) {
           final candidates = item['candidate_items'] as List;
           for (var candidate in candidates) {
             final externalItems = candidate['external_items'] as List;
-            final url = externalItems.isNotEmpty
-                ? externalItems[0]['url']
-                : null;
-
+            final url = externalItems.isNotEmpty ? externalItems[0]['url'] : '';
             results.add({
+              'id': candidate['id'].toString(),
               'name': candidate['name'],
               'image': candidate['image_url'],
               'score': candidate['score'].toStringAsFixed(2),
-              'url': url ?? '',
+              'url': url,
             });
           }
         }
 
-        setState(() {
-          _results = results;
-        });
+        _results = results;
       } else {
         debugPrint(
-          "Upload failed with status: ${response.statusCode} ${response.reasonPhrase}",
+          "Upload failed: \${response.statusCode} \${response.reasonPhrase}",
         );
       }
     } catch (e) {
-      debugPrint("Error uploading image: $e");
+      debugPrint("Error uploading image: \$e");
     }
   }
 
   Future<Uint8List> compressImage(Uint8List inputBytes) async {
     final image = img.decodeImage(inputBytes);
-    if (image == null) {
-      throw Exception("Could not decode image");
-    }
+    if (image == null) throw Exception("Could not decode image");
 
     int quality = 95;
     Uint8List compressed = Uint8List.fromList(
@@ -153,115 +254,7 @@ class _CameraPageState extends State<_CameraPage> {
       quality -= 5;
       compressed = Uint8List.fromList(img.encodeJpg(image, quality: quality));
     }
-    debugPrint("Compressed image size: ${compressed.lengthInBytes} bytes");
-    debugPrint("Final quality: $quality");
+    debugPrint("Compressed image size: \${compressed.lengthInBytes} bytes");
     return compressed;
-  }
-
-  Future<Uint8List?> _compressImage(String path) async {
-    final result = await FlutterImageCompress.compressWithFile(
-      path,
-      minWidth: 200, // Resize image
-      minHeight: 200,
-      quality: 10, // Compression quality (0–100)
-      format: CompressFormat.jpeg,
-    );
-    return result;
-  }
-
-  void handleBrickognizeResponse(String jsonResponse) {
-    final data = jsonDecode(jsonResponse);
-
-    final detectedItems = data['detected_items'] as List;
-    for (var item in detectedItems) {
-      final candidates = item['candidate_items'] as List;
-
-      for (var candidate in candidates) {
-        final name = candidate['name'];
-        final score = candidate['score'];
-        final imageUrl = candidate['image_url'];
-        final external = candidate['external_items'] as List;
-
-        final bricklinkUrl = external.isNotEmpty
-            ? external[0]['url']
-            : 'No link';
-
-        debugPrint('Name: $name');
-        debugPrint('Score: ${score.toStringAsFixed(2)}');
-        debugPrint('Image URL: $imageUrl');
-        debugPrint('BrickLink: $bricklinkUrl');
-        debugPrint('---');
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Flutter Camera App')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            SizedBox(
-              width: 200,
-              height: 200,
-              child: _image == null
-                  ? Text("No image selected")
-                  : kIsWeb
-                  ? Image.network(_image!.path)
-                  : Image.file(File(_image!.path)),
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                ElevatedButton(
-                  onPressed: _takePhoto,
-                  child: Text("Take Photo"),
-                ),
-                SizedBox(width: 20),
-                ElevatedButton(
-                  onPressed: _pickImage,
-                  child: Text("Pick from Gallery"),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _uploadImage,
-              child: Text("Upload Image"),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _results.length,
-                itemBuilder: (context, index) {
-                  final item = _results[index];
-                  return Card(
-                    margin: EdgeInsets.all(8),
-                    child: ListTile(
-                      leading: Image.network(
-                        item['image']!,
-                        width: 50,
-                        height: 50,
-                      ),
-                      title: Text(item['name']!),
-                      subtitle: Text("Score: ${item['score']}"),
-                      trailing: Icon(Icons.open_in_new),
-                      onTap: () {
-                        final url = item['url'];
-                        if (url != null && url.isNotEmpty) {
-                          launchUrl(Uri.parse(url));
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
