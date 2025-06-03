@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image/image.dart' as img;
 
 void main() {
   runApp(MyApp());
@@ -38,7 +39,11 @@ class _CameraPageState extends State<_CameraPage> {
   Future<void> _takePhoto() async {
     final PermissionStatus status = await Permission.camera.request();
     if (status.isGranted) {
-      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1080,
+        maxHeight: 1080,
+      );
       setState(() {
         _image = image;
       });
@@ -61,7 +66,6 @@ class _CameraPageState extends State<_CameraPage> {
   }
 
   Future<void> _uploadImage() async {
-
     _results.clear(); // Clear previous results
     if (_image == null) return;
 
@@ -69,25 +73,31 @@ class _CameraPageState extends State<_CameraPage> {
       var uri = Uri.parse('https://api.brickognize.com/internal/search/');
       var request = http.MultipartRequest('POST', uri);
 
-      // Attach the image file
       if (kIsWeb) {
-        // Web doesn't have file path, you must handle differently (not covered here)
-        debugPrint("Uploading images on Web requires special handling.");
-        return;
+        // Read file as bytes for web
+        final bytes = await _image!.readAsBytes();
+
+        var multipartFile = http.MultipartFile.fromBytes(
+          'query_image',
+          bytes,
+          filename: 'upload.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        );
+        debugPrint("File size: ${multipartFile.length} bytes");
+        request.files.add(multipartFile);
+      } else {
+        Uint8List originalBytes = await _image!.readAsBytes();
+        //        Uint8List compressedBytes = await compressImage(originalBytes);
+        // Non-web: use file path
+        var file = http.MultipartFile.fromBytes(
+          'query_image',
+          originalBytes,
+          filename: 'upload.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        );
+        debugPrint("File size: ${file.length} bytes");
+        request.files.add(file);
       }
-      debugPrint(_image!.path);
-
-      debugPrint("Image path: ${_image!.path}");
-      debugPrint("File exists: ${File(_image!.path).existsSync()}");
-      debugPrint("File length: ${await File(_image!.path).length()}");
-      
-
-      var file = await http.MultipartFile.fromPath(
-        'query_image',
-        _image!.path,
-        contentType: MediaType('image', 'jpeg'),
-      );
-      request.files.add(file);
 
       debugPrint("about to send request with file: ${_image!.path}");
       // Send the request
@@ -102,7 +112,7 @@ class _CameraPageState extends State<_CameraPage> {
           final candidates = item['candidate_items'] as List;
           for (var candidate in candidates) {
             final externalItems = candidate['external_items'] as List;
-            final url = externalItems.isNotEmpty  
+            final url = externalItems.isNotEmpty
                 ? externalItems[0]['url']
                 : null;
 
@@ -127,16 +137,38 @@ class _CameraPageState extends State<_CameraPage> {
       debugPrint("Error uploading image: $e");
     }
   }
-Future<Uint8List?> _compressImage(String path) async {
-  final result = await FlutterImageCompress.compressWithFile(
-    path,
-    minWidth: 200,           // Resize image
-    minHeight: 200,
-    quality: 10,             // Compression quality (0–100)
-    format: CompressFormat.jpeg,
-  );
-  return result;
-}
+
+  Future<Uint8List> compressImage(Uint8List inputBytes) async {
+    final image = img.decodeImage(inputBytes);
+    if (image == null) {
+      throw Exception("Could not decode image");
+    }
+
+    int quality = 95;
+    Uint8List compressed = Uint8List.fromList(
+      img.encodeJpg(image, quality: quality),
+    );
+
+    while (compressed.lengthInBytes > 2 * 1024 * 1024 && quality > 10) {
+      quality -= 5;
+      compressed = Uint8List.fromList(img.encodeJpg(image, quality: quality));
+    }
+    debugPrint("Compressed image size: ${compressed.lengthInBytes} bytes");
+    debugPrint("Final quality: $quality");
+    return compressed;
+  }
+
+  Future<Uint8List?> _compressImage(String path) async {
+    final result = await FlutterImageCompress.compressWithFile(
+      path,
+      minWidth: 200, // Resize image
+      minHeight: 200,
+      quality: 10, // Compression quality (0–100)
+      format: CompressFormat.jpeg,
+    );
+    return result;
+  }
+
   void handleBrickognizeResponse(String jsonResponse) {
     final data = jsonDecode(jsonResponse);
 
