@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image/image.dart' as img;
+import 'candidate_storage.dart';
 
 void main() {
   runApp(const MyApp());
@@ -83,60 +84,85 @@ class CameraPageBody extends StatelessWidget {
             ),
           ],
         ),
-        // const SizedBox(height: 20),
-        // ElevatedButton(
-        //   onPressed: () async {
-        //     await model.uploadImage();
-        //     (context as Element).markNeedsBuild();
-        //   },
-        //   child: const Text("Upload Image"),
-        // ),
         Expanded(
           child: ListView.builder(
             itemCount: model.results.length,
             itemBuilder: (context, index) {
               final item = model.results[index];
-        return Card(
-  margin: const EdgeInsets.all(8),
-  child: Padding(
-    padding: const EdgeInsets.all(8.0),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Column with image and icon below it, aligned left
-        Column(
-          children: [
-            Image.network(item['image']!, width: 100, height: 100),
-            IconButton(
-              icon: const Icon(Icons.open_in_new),
-              onPressed: () {
-                final url = item['url'];
-                if (url != null && url.isNotEmpty) {
-                  launchUrl(Uri.parse(url));
-                }
-              },
-            ),
-          ],
-        ),
+              return FutureBuilder<Map<String, dynamic>>(
+                future: CandidateStorage.load(
+                  item['id'] as String,
+                ), // Load stored comment
+                builder: (context, snapshot) {
+                  final comment = snapshot.data?['comment'] ?? '';
 
-        const SizedBox(width: 8),
-
-        // Text details next to image+icon column
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(item['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text("ID: ${item['id']}"),
-              Text("Score: ${item['score']}"),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-);
-
+                  return Card(
+                    margin: const EdgeInsets.all(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Column(
+                            children: [
+                              Image.network(
+                                item['image']!,
+                                width: 100,
+                                height: 100,
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.open_in_new),
+                                onPressed: () {
+                                  final url = item['url'];
+                                  if (url != null && url.isNotEmpty) {
+                                    launchUrl(Uri.parse(url));
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item['name']!,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text("ID: ${item['id']}"),
+                                Text("Score: ${item['score']}"),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: TextEditingController(
+                                    text: comment,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Comment',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  onSubmitted: (value) async {
+                                    final updated = Map<String, dynamic>.from(
+                                      item,
+                                    );
+                                    updated['comment'] = value;
+                                    await CandidateStorage.save(
+                                      item['id'] as String,
+                                      updated,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
             },
           ),
         ),
@@ -218,6 +244,9 @@ class CameraModel {
         for (var item in detectedItems) {
           final candidates = item['candidate_items'] as List;
           for (var candidate in candidates) {
+            final id = candidate['id'];
+            await CandidateStorage.save(id, candidate);
+
             final externalItems = candidate['external_items'] as List;
             final url = externalItems.isNotEmpty ? externalItems[0]['url'] : '';
             results.add({
