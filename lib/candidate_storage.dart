@@ -30,11 +30,12 @@ class CandidateStorage {
     final file = await _getFile(id);
     final existing = await load(id);
 
-    // Preserve editable fields like 'comment'
-    if (existing.containsKey('comment') && !newData.containsKey('comment')) {
-      newData['comment'] = existing['comment'];
+      // Merge all keys from existing into newData if missing
+  for (var key in existing.keys) {
+    if (!newData.containsKey(key)) {
+      newData[key] = existing[key];
     }
-
+  }
     await file.writeAsString(jsonEncode(newData));
   }
 }

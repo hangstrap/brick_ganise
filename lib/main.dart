@@ -1,3 +1,4 @@
+import 'package:provider/provider.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:http_parser/http_parser.dart';
@@ -12,7 +13,9 @@ import 'package:image/image.dart' as img;
 import 'candidate_storage.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(create: (_) => CameraModel(), child: const MyApp()),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -20,35 +23,29 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: const CameraPage());
+    return const MaterialApp(home: CameraPage());
   }
 }
 
-class CameraPage extends StatefulWidget {
+class CameraPage extends StatelessWidget {
   const CameraPage({super.key});
-
-  @override
-  State<CameraPage> createState() => _CameraPageState();
-}
-
-class _CameraPageState extends State<CameraPage> {
-  final CameraModel model = CameraModel();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Flutter Camera App')),
-      body: CameraPageBody(model: model),
+      body: const CameraPageBody(),
     );
   }
 }
 
 class CameraPageBody extends StatelessWidget {
-  final CameraModel model;
-  const CameraPageBody({super.key, required this.model});
+  const CameraPageBody({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final model = Provider.of<CameraModel>(context);
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
@@ -69,7 +66,6 @@ class CameraPageBody extends StatelessWidget {
               onPressed: () async {
                 await model.takePhoto();
                 await model.uploadImage();
-                (context as Element).markNeedsBuild();
               },
               child: const Text("Take Photo"),
             ),
@@ -78,7 +74,6 @@ class CameraPageBody extends StatelessWidget {
               onPressed: () async {
                 await model.pickImage();
                 await model.uploadImage();
-                (context as Element).markNeedsBuild();
               },
               child: const Text("Pick from Gallery"),
             ),
@@ -89,12 +84,19 @@ class CameraPageBody extends StatelessWidget {
             itemCount: model.results.length,
             itemBuilder: (context, index) {
               final item = model.results[index];
+              final id = item['id']!;
               return FutureBuilder<Map<String, dynamic>>(
-                future: CandidateStorage.load(
-                  item['id'] as String,
-                ), // Load stored comment
+                future: CandidateStorage.load(id),
                 builder: (context, snapshot) {
-                  final comment = snapshot.data?['comment'] ?? '';
+                  //                 final storedData = snapshot.data ?? {};
+                  //                  final comment = storedData['comment'] ?? '';
+                  //                final controller = TextEditingController(text: comment);
+                  final binValue = snapshot.data?['bin'] as String?;
+                  final rowValue = snapshot.data?['row'] as String?;
+                  final columnValue = snapshot.data?['column'] as String?;
+                  const binOptions = ['A', 'B', 'C', 'D', 'E'];
+                  const rowOptions = ['1', '2', '3', '4', '5'];
+                  const columnOptions = ['1', '2', '3', '4', '5'];
 
                   return Card(
                     margin: const EdgeInsets.all(8),
@@ -103,6 +105,7 @@ class CameraPageBody extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // image + icon column unchanged
                           Column(
                             children: [
                               Image.network(
@@ -135,19 +138,75 @@ class CameraPageBody extends StatelessWidget {
                                 Text("ID: ${item['id']}"),
                                 Text("Score: ${item['score']}"),
                                 const SizedBox(height: 8),
-                                TextField(
-                                  controller: TextEditingController(
-                                    text: comment,
-                                  ),
+
+                                // Dropdowns for Bin, Row, Column
+                                DropdownButtonFormField<String>(
+                                  value: binValue,
                                   decoration: const InputDecoration(
-                                    labelText: 'Comment',
-                                    border: OutlineInputBorder(),
+                                    labelText: 'Bin (optional)',
                                   ),
-                                  onSubmitted: (value) async {
+                                  items: [null, ...binOptions].map((e) {
+                                    return DropdownMenuItem<String>(
+                                      value: e,
+                                      child: Text(e ?? 'None'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) async {
                                     final updated = Map<String, dynamic>.from(
                                       item,
                                     );
-                                    updated['comment'] = value;
+                                    updated['bin'] = val;
+                                    await CandidateStorage.save(
+                                      item['id'] as String,
+                                      updated,
+                                    );
+                                    // Optional: Trigger UI update, e.g. by calling setState or notifyListeners in your model
+                                  },
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                DropdownButtonFormField<String>(
+                                  value: rowValue,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Row (optional)',
+                                  ),
+                                  items: [null, ...rowOptions].map((e) {
+                                    return DropdownMenuItem<String>(
+                                      value: e,
+                                      child: Text(e ?? 'None'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) async {
+                                    final updated = Map<String, dynamic>.from(
+                                      item,
+                                    );
+                                    updated['row'] = val;
+                                    await CandidateStorage.save(
+                                      item['id'] as String,
+                                      updated,
+                                    );
+                                  },
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                DropdownButtonFormField<String>(
+                                  value: columnValue,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Column (optional)',
+                                  ),
+                                  items: [null, ...columnOptions].map((e) {
+                                    return DropdownMenuItem<String>(
+                                      value: e,
+                                      child: Text(e ?? 'None'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) async {
+                                    final updated = Map<String, dynamic>.from(
+                                      item,
+                                    );
+                                    updated['column'] = val;
                                     await CandidateStorage.save(
                                       item['id'] as String,
                                       updated,
@@ -171,7 +230,7 @@ class CameraPageBody extends StatelessWidget {
   }
 }
 
-class CameraModel {
+class CameraModel extends ChangeNotifier {
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
   List<Map<String, String>> _results = [];
@@ -191,6 +250,7 @@ class CameraModel {
     } else {
       debugPrint("Camera permission denied");
     }
+    notifyListeners(); // Notify listeners to update the UI
   }
 
   Future<void> pickImage() async {
@@ -201,6 +261,7 @@ class CameraModel {
     } else {
       debugPrint("Photo permission denied");
     }
+    notifyListeners(); // Notify listeners to update the UI
   }
 
   Future<void> uploadImage() async {
@@ -268,9 +329,14 @@ class CameraModel {
     } catch (e) {
       debugPrint("Error uploading image: \$e");
     }
+    notifyListeners(); // Notify listeners to update the UI
   }
 
   Future<Uint8List> compressImage(Uint8List inputBytes) async {
+    if (inputBytes.lengthInBytes < 2 * 1024 * 1024) {
+      debugPrint("Image is already less than 2MB, no compression needed.");
+      return inputBytes;
+    }
     final image = img.decodeImage(inputBytes);
     if (image == null) throw Exception("Could not decode image");
 
@@ -283,7 +349,14 @@ class CameraModel {
       quality -= 5;
       compressed = Uint8List.fromList(img.encodeJpg(image, quality: quality));
     }
-    debugPrint("Compressed image size: \${compressed.lengthInBytes} bytes");
+    debugPrint(
+      "Final compressed image size: ${compressed.lengthInBytes} bytes, quality: $quality",
+    );
     return compressed;
+  }
+
+  void clearResults() {
+    _results.clear();
+    notifyListeners(); // Triggers UI rebuild
   }
 }
