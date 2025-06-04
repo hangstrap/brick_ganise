@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image/image.dart' as img;
 import 'candidate_storage.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 
 void main() {
   runApp(
@@ -205,9 +206,8 @@ class _CameraPageBodyState extends State<CameraPageBody> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                EditableDropdown(
-                                  id: id,
-                                  field: 'bin',
+                                EditableDropdownAutocomplete(
+                    
                                   label: 'Bin',
                                   options: binOptions,
                                   value: fields['bin'],
@@ -220,9 +220,8 @@ class _CameraPageBodyState extends State<CameraPageBody> {
                                   },
                                 ),
                                 const SizedBox(width: 8),
-                                EditableDropdown(
-                                  id: id,
-                                  field: 'column',
+                                EditableDropdownAutocomplete(
+                         
                                   label: 'Column',
                                   options: columnOptions,
                                   value: fields['column'],
@@ -235,9 +234,8 @@ class _CameraPageBodyState extends State<CameraPageBody> {
                                   },
                                 ),
                                 const SizedBox(width: 8),
-                                EditableDropdown(
-                                  id: id,
-                                  field: 'row',
+                                EditableDropdownAutocomplete(
+                 
                                   label: 'Row',
                                   options: rowOptions,
                                   value: fields['row'],
@@ -264,19 +262,16 @@ class _CameraPageBodyState extends State<CameraPageBody> {
   }
 }
 
-class EditableDropdown extends StatelessWidget {
-  final String id;
-  final String field;
+
+class EditableDropdownAutocomplete extends StatelessWidget {
   final String label;
   final List<String> options;
   final String? value;
-  final Function(String? newValue) onChanged;
   final bool enabled;
+  final void Function(String?) onChanged;
 
-  const EditableDropdown({
+  const EditableDropdownAutocomplete({
     super.key,
-    required this.id,
-    required this.field,
     required this.label,
     required this.options,
     required this.value,
@@ -287,20 +282,47 @@ class EditableDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: DropdownButtonFormField<String>(
-        value: value?.isNotEmpty == true ? value : null,
-        decoration: InputDecoration(labelText: label),
-        items: [
-          const DropdownMenuItem<String>(value: null, child: Text('—')),
-          ...options.map(
-            (opt) => DropdownMenuItem(value: opt, child: Text(opt)),
-          ),
-        ],
-        onChanged: enabled ? onChanged : null,
+      child: Autocomplete<String>(
+        initialValue: TextEditingValue(text: value ?? ''),
+        optionsBuilder: (TextEditingValue textEditingValue) {
+          final input = textEditingValue.text.toLowerCase();
+          if (input.isEmpty) return const Iterable<String>.empty();
+          return options.where(
+            (option) => option.toLowerCase().startsWith(input),
+          );
+        },
+        onSelected: (String selection) {
+          onChanged(selection);
+        },
+        fieldViewBuilder:
+            (context, controller, focusNode, onEditingComplete) {
+          return TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            enabled: enabled,
+            decoration: InputDecoration(labelText: label),
+            onEditingComplete: () {
+              final input = controller.text.trim();
+              final match = options.firstWhere(
+                (o) => o.toLowerCase() == input.toLowerCase(),
+                orElse: () => '',
+              );
+              if (match.isNotEmpty) {
+                controller.text = match;
+                onChanged(match);
+              } else {
+                controller.clear();
+                onChanged(null);
+              }
+              onEditingComplete();
+            },
+          );
+        },
       ),
     );
   }
 }
+
 
 class CameraModel extends ChangeNotifier {
   final ImagePicker _picker = ImagePicker();

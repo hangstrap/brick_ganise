@@ -1,6 +1,10 @@
+
+
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
+
 
 class CandidateStorage {
   static Future<Directory> _getDir() async {
@@ -36,6 +40,8 @@ class CandidateStorage {
       newData[key] = existing[key];
     }
   }
-    await file.writeAsString(jsonEncode(newData));
+  var json = jsonEncode(newData);
+    await file.writeAsString( json);
+    debugPrint( "saving cadidate data  $json");
   }
 }
