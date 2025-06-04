@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 class CandidateStorage {
   static Future<Directory> _getDir() async {
     final dir = await getApplicationDocumentsDirectory();
-    final subdir = Directory('${dir.path}/candidates');
+    final subdir = Directory('${dir.path}/brick_ganise/candidates/');
     if (!await subdir.exists()) {
       await subdir.create(recursive: true);
     }

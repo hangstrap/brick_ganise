@@ -27,53 +27,130 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class CameraPage extends StatelessWidget {
+class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
+
+  @override
+  State<CameraPage> createState() => _CameraPageState();
+}
+
+class _CameraPageState extends State<CameraPage> {
+  final CameraModel model = CameraModel();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Flutter Camera App')),
-      body: const CameraPageBody(),
+      body: CameraPageBody(model: model), // <-- pass the model here
     );
   }
 }
 
-class CameraPageBody extends StatelessWidget {
-  const CameraPageBody({super.key});
+class CameraPageBody extends StatefulWidget {
+  final CameraModel model;
+  const CameraPageBody({super.key, required this.model});
+
+  @override
+  State<CameraPageBody> createState() => _CameraPageBodyState();
+}
+
+class _CameraPageBodyState extends State<CameraPageBody> {
+  final Map<String, Map<String, String?>> _editableData = {};
+
+  final binOptions = [
+    'Able',
+    'Bob',
+    'Chip',
+    'Denyy',
+    'Emma',
+    'Fiona',
+    'Gale',
+    'Harry',
+    'Ian',
+    'Jane',
+    'Kate',
+    'Lyn',
+    'Mike',
+    'Nick',
+    'Osca',
+    'Paul',
+    'Queen',
+    'Rick',
+    'Stew',
+    'Tom',
+    'Uma',
+    'Vilot',
+    'Walter',
+    'Xena',
+    'Yara',
+    'Zoie',
+  ];
+  final columnOptions = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+  final rowOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllEditableData();
+  }
+
+  Future<void> _loadAllEditableData() async {
+    for (var item in widget.model.results) {
+      final id = item['id'];
+      if (id == null) continue;
+      final stored = await CandidateStorage.load(id);
+      _editableData[id] = {
+        'bin': stored['bin'],
+        'row': stored['row'],
+        'column': stored['column'],
+      };
+    }
+    setState(() {});
+  }
+
+  void _updateField(String id, String field, String? value) async {
+    final stored = await CandidateStorage.load(id);
+    stored[field] = value;
+    await CandidateStorage.save(id, stored);
+    setState(() {
+      _editableData[id]?[field] = value;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final model = Provider.of<CameraModel>(context);
-
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
+      children: [
+        const SizedBox(height: 16),
         SizedBox(
           width: 100,
           height: 100,
-          child: model.image == null
+          child: widget.model.image == null
               ? const Text("No image selected")
               : kIsWeb
-              ? Image.network(model.image!.path)
-              : Image.file(File(model.image!.path)),
+              ? Image.network(widget.model.image!.path)
+              : Image.file(File(widget.model.image!.path)),
         ),
         const SizedBox(height: 20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
+          children: [
             ElevatedButton(
               onPressed: () async {
-                await model.takePhoto();
-                await model.uploadImage();
+                widget.model.clearResults();
+                await widget.model.takePhoto();
+                await widget.model.uploadImage();
+                await _loadAllEditableData();
               },
               child: const Text("Take Photo"),
             ),
             const SizedBox(width: 20),
             ElevatedButton(
               onPressed: () async {
-                await model.pickImage();
-                await model.uploadImage();
+                widget.model.clearResults();
+                await widget.model.pickImage();
+                await widget.model.uploadImage();
+                await _loadAllEditableData();
               },
               child: const Text("Pick from Gallery"),
             ),
@@ -81,151 +158,146 @@ class CameraPageBody extends StatelessWidget {
         ),
         Expanded(
           child: ListView.builder(
-            itemCount: model.results.length,
+            itemCount: widget.model.results.length,
             itemBuilder: (context, index) {
-              final item = model.results[index];
+              final item = widget.model.results[index];
               final id = item['id']!;
-              return FutureBuilder<Map<String, dynamic>>(
-                future: CandidateStorage.load(id),
-                builder: (context, snapshot) {
-                  //                 final storedData = snapshot.data ?? {};
-                  //                  final comment = storedData['comment'] ?? '';
-                  //                final controller = TextEditingController(text: comment);
-                  final binValue = snapshot.data?['bin'] as String?;
-                  final rowValue = snapshot.data?['row'] as String?;
-                  final columnValue = snapshot.data?['column'] as String?;
-                  const binOptions = ['A', 'B', 'C', 'D', 'E'];
-                  const rowOptions = ['1', '2', '3', '4', '5'];
-                  const columnOptions = ['1', '2', '3', '4', '5'];
+              final fields = _editableData[id] ?? {};
 
-                  return Card(
-                    margin: const EdgeInsets.all(8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              return Card(
+                margin: const EdgeInsets.all(8),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Column(
                         children: [
-                          // image + icon column unchanged
-                          Column(
-                            children: [
-                              Image.network(
-                                item['image']!,
-                                width: 100,
-                                height: 100,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.open_in_new),
-                                onPressed: () {
-                                  final url = item['url'];
-                                  if (url != null && url.isNotEmpty) {
-                                    launchUrl(Uri.parse(url));
-                                  }
-                                },
-                              ),
-                            ],
+                          Image.network(
+                            item['image']!,
+                            width: 100,
+                            height: 100,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          IconButton(
+                            icon: const Icon(Icons.open_in_new),
+                            onPressed: () {
+                              final url = item['url'];
+                              if (url != null && url.isNotEmpty) {
+                                launchUrl(Uri.parse(url));
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item['name']!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text("ID: $id"),
+                            Text("Score: ${item['score']}"),
+                            const SizedBox(height: 8),
+                            Row(
                               children: [
-                                Text(
-                                  item['name']!,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text("ID: ${item['id']}"),
-                                Text("Score: ${item['score']}"),
-                                const SizedBox(height: 8),
-
-                                // Dropdowns for Bin, Row, Column
-                                DropdownButtonFormField<String>(
-                                  value: binValue,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Bin (optional)',
-                                  ),
-                                  items: [null, ...binOptions].map((e) {
-                                    return DropdownMenuItem<String>(
-                                      value: e,
-                                      child: Text(e ?? 'None'),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) async {
-                                    final updated = Map<String, dynamic>.from(
-                                      item,
-                                    );
-                                    updated['bin'] = val;
-                                    await CandidateStorage.save(
-                                      item['id'] as String,
-                                      updated,
-                                    );
-                                    // Optional: Trigger UI update, e.g. by calling setState or notifyListeners in your model
+                                EditableDropdown(
+                                  id: id,
+                                  field: 'bin',
+                                  label: 'Bin',
+                                  options: binOptions,
+                                  value: fields['bin'],
+                                  onChanged: (value) {
+                                    _updateField(id, 'bin', value);
+                                    if (value == null || value.isEmpty) {
+                                      _updateField(id, 'column', null);
+                                      _updateField(id, 'row', null);
+                                    }
                                   },
                                 ),
-
-                                const SizedBox(height: 8),
-
-                                DropdownButtonFormField<String>(
-                                  value: rowValue,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Row (optional)',
-                                  ),
-                                  items: [null, ...rowOptions].map((e) {
-                                    return DropdownMenuItem<String>(
-                                      value: e,
-                                      child: Text(e ?? 'None'),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) async {
-                                    final updated = Map<String, dynamic>.from(
-                                      item,
-                                    );
-                                    updated['row'] = val;
-                                    await CandidateStorage.save(
-                                      item['id'] as String,
-                                      updated,
-                                    );
+                                const SizedBox(width: 8),
+                                EditableDropdown(
+                                  id: id,
+                                  field: 'column',
+                                  label: 'Column',
+                                  options: columnOptions,
+                                  value: fields['column'],
+                                  enabled: (fields['bin']?.isNotEmpty ?? false),
+                                  onChanged: (value) {
+                                    _updateField(id, 'column', value);
+                                    if (value == null || value.isEmpty) {
+                                      _updateField(id, 'row', null);
+                                    }
                                   },
                                 ),
-
-                                const SizedBox(height: 8),
-
-                                DropdownButtonFormField<String>(
-                                  value: columnValue,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Column (optional)',
-                                  ),
-                                  items: [null, ...columnOptions].map((e) {
-                                    return DropdownMenuItem<String>(
-                                      value: e,
-                                      child: Text(e ?? 'None'),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) async {
-                                    final updated = Map<String, dynamic>.from(
-                                      item,
-                                    );
-                                    updated['column'] = val;
-                                    await CandidateStorage.save(
-                                      item['id'] as String,
-                                      updated,
-                                    );
+                                const SizedBox(width: 8),
+                                EditableDropdown(
+                                  id: id,
+                                  field: 'row',
+                                  label: 'Row',
+                                  options: rowOptions,
+                                  value: fields['row'],
+                                  enabled:
+                                      (fields['column']?.isNotEmpty ?? false),
+                                  onChanged: (value) {
+                                    _updateField(id, 'row', value);
                                   },
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class EditableDropdown extends StatelessWidget {
+  final String id;
+  final String field;
+  final String label;
+  final List<String> options;
+  final String? value;
+  final Function(String? newValue) onChanged;
+  final bool enabled;
+
+  const EditableDropdown({
+    super.key,
+    required this.id,
+    required this.field,
+    required this.label,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: DropdownButtonFormField<String>(
+        value: value?.isNotEmpty == true ? value : null,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          const DropdownMenuItem<String>(value: null, child: Text('—')),
+          ...options.map(
+            (opt) => DropdownMenuItem(value: opt, child: Text(opt)),
+          ),
+        ],
+        onChanged: enabled ? onChanged : null,
+      ),
     );
   }
 }
