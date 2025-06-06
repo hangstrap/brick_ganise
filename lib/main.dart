@@ -35,7 +35,7 @@ class _CameraPageState extends State<CameraPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar( centerTitle: true,  title: const Text('Brick - Ganise')),
+      appBar: AppBar(centerTitle: true, title: const Text('Brick Ganise')),
       body: CameraPageBody(model: model), // <-- pass the model here
     );
   }
@@ -116,7 +116,7 @@ class _CameraPageBodyState extends State<CameraPageBody> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 16),
+        const SizedBox(height: 4),
         SizedBox(
           width: 100,
           height: 100,
@@ -126,7 +126,7 @@ class _CameraPageBodyState extends State<CameraPageBody> {
               ? Image.network(widget.model.image!.path)
               : Image.file(File(widget.model.image!.path)),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -135,13 +135,13 @@ class _CameraPageBodyState extends State<CameraPageBody> {
                 widget.model.clearResults();
                 setState(() {});
                 await widget.model.takePhoto();
-                setState(() {});                
+                setState(() {});
                 await widget.model.uploadImage();
                 await _loadAllEditableData();
               },
-              child: const Text("Take Photo"),
+              child: const Text("Photo"),
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 10),
             ElevatedButton(
               onPressed: () async {
                 widget.model.clearResults();
@@ -151,7 +151,7 @@ class _CameraPageBodyState extends State<CameraPageBody> {
                 await widget.model.uploadImage();
                 await _loadAllEditableData();
               },
-              child: const Text("Pick from Gallery"),
+              child: const Text("Gallery"),
             ),
           ],
         ),
@@ -162,79 +162,75 @@ class _CameraPageBodyState extends State<CameraPageBody> {
               final item = widget.model.results[index];
               final id = item['id']!;
               final fields = _editableData[id] ?? {};
-
               return Card(
                 margin: const EdgeInsets.all(8),
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
+                      // Top row: Image + Text
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Image.network(
                             item['image']!,
                             width: 100,
                             height: 100,
                           ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['name']!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text("ID: $id"),
-                            Text("Score: ${item['score']}"),
-                            const SizedBox(height: 8),
-                            Row(
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: EditableDropdownMenu(
-                                    options: binOptions,      
-                                    value: fields['bin'],
-                                    onChanged: (value) {
-                                      _updateField(id, 'bin', value);
-                                    },
+                                Text(
+                                  item['name']!,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: EditableDropdownMenu(
-                                    options: columnOptions,
-                                    value: fields['column'],
-                                  //                                  enabled: (fields['bin']?.isNotEmpty ?? false),
-                                    onChanged: (value) {
-                                      _updateField(id, 'column', value);
-                                      // if (value == null || value.isEmpty) {
-                                      //   _updateField(id, 'row', null);
-                                      // }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: EditableDropdownMenu(          
-                                    options: rowOptions,
-                                    value: fields['row'],
-                                  //                                enabled:
-                                  //                                     (fields['column']?.isNotEmpty ?? false),
-                                    onChanged: (value) {
-                                      _updateField(id, 'row', value);
-                                    },
-                                  ),
-                                ),
+                                Text("ID: $id"),
+                                Text("Score: ${item['score']}"),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
+                   //   const SizedBox(height: 8),
+
+                      // Bottom row: 3 dropdowns
+                      Row(
+                        children: [
+                          Expanded(
+                            child: EditableDropdownMenu(
+                              options: binOptions,
+                              value: fields['bin'],
+                              onChanged: (value) =>
+                                  _updateField(id, 'bin', value),
+                            ),
+                          ),
+                          //const SizedBox(width: 4),
+                          Expanded(
+                            child: EditableDropdownMenu(
+                              options: columnOptions,
+                              value: fields['column'],
+                              onChanged: (value) =>
+                                  _updateField(id, 'column', value),
+                            ),
+                          ),
+                          //const SizedBox(width: 4),
+                          Expanded(
+                            child: EditableDropdownMenu(
+                              options: rowOptions,
+                              value: fields['row'],
+                              onChanged: (value) =>
+                                  _updateField(id, 'row', value),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
                     ],
                   ),
                 ),
@@ -263,20 +259,37 @@ class EditableDropdownMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: DropdownMenu<String?>(
-        initialSelection: value,
-        enabled: enabled,
-        onSelected: onChanged,
-            dropdownMenuEntries: [
-        const DropdownMenuEntry<String?>(
-          value: null,
-          label: '(none)', // or 'Select one', etc.
+    return SizedBox(
+      height: 40, // smaller height
+      child: DropdownMenuTheme(
+        data: DropdownMenuThemeData(
+          textStyle: const TextStyle(fontSize: 12), // smaller font
+          menuStyle: MenuStyle(
+            visualDensity: VisualDensity.compact, // tighter spacing
+            padding: WidgetStateProperty.all(EdgeInsets.zero),
+          ),
+          inputDecorationTheme: const InputDecorationTheme(
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+            isDense: true,
+          ),
         ),
-        ...options.map(
-          (option) => DropdownMenuEntry(value: option, label: option),
+        child: DropdownMenu<String?>(
+          initialSelection: value,
+          enabled: enabled,
+          onSelected: onChanged,
+          dropdownMenuEntries: [
+            const DropdownMenuEntry<String?>(
+              value: null,
+              label: '?',
+            ),
+            ...options.map(
+              (option) => DropdownMenuEntry(value: option, label: option),
+            ),
+          ],
         ),
-      ],
       ),
     );
   }

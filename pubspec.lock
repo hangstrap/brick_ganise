@@ -69,10 +69,10 @@ packages:
     dependency: "direct main"
     description:
       name: dropdown_search
-      sha256: "55106e8290acaa97ed15bea1fdad82c3cf0c248dd410e651f5a8ac6870f783ab"
+      sha256: c29b3e5147a82a06a4a08b3b574c51cb48cc17ad89893d53ee72a6f86643622e
       url: "https://pub.dev"
     source: hosted
-    version: "5.0.6"
+    version: "6.0.2"
   fake_async:
     dependency: transitive
     description:
@@ -93,10 +93,10 @@ packages:
     dependency: "direct main"
     description:
       name: file_picker
-      sha256: "1bbf65dd997458a08b531042ec3794112a6c39c07c37ff22113d2e7e4f81d4e4"
+      sha256: "77f8e81d22d2a07d0dee2c62e1dda71dc1da73bf43bb2d45af09727406167964"
       url: "https://pub.dev"
     source: hosted
-    version: "6.2.1"
+    version: "10.1.9"
   file_selector_linux:
     dependency: transitive
     description:
