@@ -35,7 +35,7 @@ class _CameraPageState extends State<CameraPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Flutter Camera App')),
+      appBar: AppBar( centerTitle: true,  title: const Text('Brick - Ganise')),
       body: CameraPageBody(model: model), // <-- pass the model here
     );
   }
@@ -133,7 +133,9 @@ class _CameraPageBodyState extends State<CameraPageBody> {
             ElevatedButton(
               onPressed: () async {
                 widget.model.clearResults();
+                setState(() {});
                 await widget.model.takePhoto();
+                setState(() {});                
                 await widget.model.uploadImage();
                 await _loadAllEditableData();
               },
@@ -143,7 +145,9 @@ class _CameraPageBodyState extends State<CameraPageBody> {
             ElevatedButton(
               onPressed: () async {
                 widget.model.clearResults();
+                setState(() {});
                 await widget.model.pickImage();
+                setState(() {});
                 await widget.model.uploadImage();
                 await _loadAllEditableData();
               },
@@ -191,38 +195,40 @@ class _CameraPageBodyState extends State<CameraPageBody> {
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                EditableDropdownMenu(
-                                  options: binOptions,
-                                  value: fields['bin'],
-                                  onChanged: (value) {
-                                    _updateField(id, 'bin', value);
-                                    if (value == null || value.isEmpty) {
-                                      _updateField(id, 'column', null);
-                                      _updateField(id, 'row', null);
-                                    }
-                                  },
+                                Expanded(
+                                  child: EditableDropdownMenu(
+                                    options: binOptions,      
+                                    value: fields['bin'],
+                                    onChanged: (value) {
+                                      _updateField(id, 'bin', value);
+                                    },
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
-                                EditableDropdownMenu(
-                                  options: columnOptions,
-                                  value: fields['column'],
-                                  enabled: (fields['bin']?.isNotEmpty ?? false),
-                                  onChanged: (value) {
-                                    _updateField(id, 'column', value);
-                                    if (value == null || value.isEmpty) {
-                                      _updateField(id, 'row', null);
-                                    }
-                                  },
+                                Expanded(
+                                  child: EditableDropdownMenu(
+                                    options: columnOptions,
+                                    value: fields['column'],
+                                  //                                  enabled: (fields['bin']?.isNotEmpty ?? false),
+                                    onChanged: (value) {
+                                      _updateField(id, 'column', value);
+                                      // if (value == null || value.isEmpty) {
+                                      //   _updateField(id, 'row', null);
+                                      // }
+                                    },
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
-                                EditableDropdownMenu(          
-                                  options: rowOptions,
-                                  value: fields['row'],
-                                  enabled:
-                                      (fields['column']?.isNotEmpty ?? false),
-                                  onChanged: (value) {
-                                    _updateField(id, 'row', value);
-                                  },
+                                Expanded(
+                                  child: EditableDropdownMenu(          
+                                    options: rowOptions,
+                                    value: fields['row'],
+                                  //                                enabled:
+                                  //                                     (fields['column']?.isNotEmpty ?? false),
+                                    onChanged: (value) {
+                                      _updateField(id, 'row', value);
+                                    },
+                                  ),
                                 ),
                               ],
                             ),
