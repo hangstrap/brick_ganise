@@ -25,7 +25,14 @@ class CandidateStorage {
     final file = await _getFile(id);
     if (await file.exists()) {
       final contents = await file.readAsString();
-      return jsonDecode(contents);
+      debugPrint( "loaded candidate data $contents");
+      try{
+      var json = jsonDecode(contents);
+      return json;
+      }catch(e){
+        debugPrint(e.toString());
+        return {};
+      }
     }
     return {};
   }
